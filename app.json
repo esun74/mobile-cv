@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "mobile-topic",
+    "slug": "mobile-topic",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}

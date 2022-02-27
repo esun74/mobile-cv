@@ -1,5 +1,5 @@
 {
-  "name": "mobile-topic",
+  "name": "mobile-cv",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -9,12 +9,21 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^1.16.1",
+    "@tensorflow-models/coco-ssd": "^2.2.2",
+    "@tensorflow-models/mobilenet": "^2.1.0",
+    "@tensorflow/tfjs": "^3.13.0",
+    "@tensorflow/tfjs-react-native": "^0.8.0",
+    "buffer": "^6.0.3",
     "expo": "~44.0.2",
-    "expo-splash-screen": "~0.14.1",
-    "expo-status-bar": "~1.2.0",
+    "expo-camera": "~12.1.2",
+    "expo-gl": "^11.1.2",
+    "expo-image-manipulator": "~10.2.0",
+    "jpeg-js": "^0.4.3",
     "react": "17.0.1",
     "react-dom": "17.0.1",
     "react-native": "0.64.3",
+    "react-native-fs": "^2.19.0",
     "react-native-web": "0.17.1"
   },
   "devDependencies": {

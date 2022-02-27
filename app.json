@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile-topic",
-    "slug": "mobile-topic",
+    "name": "mobile-cv",
+    "slug": "mobile-cv",
     "version": "1.0.0",
     "assetBundlePatterns": [
       "**/*"

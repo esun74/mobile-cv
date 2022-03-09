@@ -13,7 +13,8 @@
 - Python
 	1. Have python & pip installed
 	2. "pip install -r requirements.txt"
-	3. open ./nn_model/generate.ipynb
+	3. Unpack [Kaggle](https://www.kaggle.com/c/facial-keypoints-detection/) data in /nn_model, specifically the train and test csv files
+	4. Open and run /nn_model/generate.ipynb
 
 - React Native
 	1. Have npm installed

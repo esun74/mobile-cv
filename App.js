@@ -35,10 +35,9 @@ export default function App() {
 	const tfjsrn = true
 	const TensorCamera = cameraWithTensors(Camera)
 	let framecount = 0
-	let framesperpred = 15
+	let framesperpred = 30
 	let frameid = 0
 	const framedimensions = [320, 180]
-	const displaydimensions = [640, 360]
 	const sm_predictions = useRef()
 	const sm_probabilities = useRef()
 	const mm_prediction1 = useRef()
@@ -150,10 +149,10 @@ export default function App() {
 
 						let pred = await sm.classify(imageTensor).catch(console.log)
 						sm_predictions.current.setNativeProps({
-							text: 'MobileNet Predictions: \n' + pred.map(e => e.className).join('\n')
+							text: 'MobileNet Predictions \n ' + pred.map(e => e.className).join('\n ')
 						})
 						sm_probabilities.current.setNativeProps({
-							text: '\n' + pred.map(e => (Math.round(e.probability * 10000) / 10000).toFixed(4)).join('\n')
+							text: 'Probabilities\n' + pred.map(e => (Math.round(e.probability * 10000) / 10000).toFixed(4)).join('\n')
 						})
 
 					} else if (framecount === ((framesperpred / 3) >> 0) && mm) {
@@ -171,30 +170,42 @@ export default function App() {
 								}],
 								text: (Math.round(pred[0].probability[0] * 10000) / 10000).toFixed(4)
 							})
+						} else {
+							mm_prediction1.current.setNativeProps({
+								style: [ styles.box, { 
+									marginLeft: 0,
+									marginTop: 0,
+									width: 0,
+									height: 0,
+								}],
+								text: ''
+							})
 						}
 
 					} else if (framecount === (((framesperpred * 2 / 3) >> 0)) && cm) {
 
-						// let imageBuffer = await imageTensor.buffer()
-						// let greyscale = new Uint8Array(framedimensions[0] * framedimensions[1])
+						let imageBuffer = await imageTensor.buffer()
+						let greyscale = new Uint8Array(imageBuffer.shape[0] * imageBuffer.shape[1])
 
 						// console.warn(imageBuffer)
-						// for (let i = 0; i < framedimensions[0] * framedimensions[1]; i++) {
-						// 	greyscale[i] = 
-						// 		imageBuffer[3 * i + 0] * 0.2989 + 
-						// 		imageBuffer[3 * i + 1] * 0.5870 + 
-						// 		imageBuffer[3 * i + 2] * 0.1140
-						// }
+						for (let i = 0; i < imageBuffer.shape[0] * imageBuffer.shape[1]; i++) {
+							greyscale[i] = 
+								imageBuffer[3 * i + 0] * 0.2989 + 
+								imageBuffer[3 * i + 1] * 0.5870 + 
+								imageBuffer[3 * i + 2] * 0.1140
+						}
 
-						// let gs_tensor = tf.tensor4d(
-						// 	greyscale,
-						// 	[1, image.height, image.width, 1]
-						// )
-							
+						let gs_tensor = tf.tensor4d(
+							greyscale,
+							[1, imageBuffer.shape[0], imageBuffer.shape[1], 1]
+						)
+						
+						// console.warn(cm.predict(gs_tensor))
+						// cm.predict(gs_tensor).catch(console.error)
+						// let predictions = await cm.predict(gs_tensor).catch(console.error)
+						// predictions.data().then(console.warn)
+
 						// tf.dispose(gs_tensor)
-
-						// let predictions = cm.predict(gs_tensor)
-						// predictions.data().then(setCmPred)
 					}
 				}
 
@@ -537,9 +548,9 @@ const styles = StyleSheet.create({
 	},
 	bottomright: {
 		position: "absolute",
-		left: 315,
+		right: 15,
 		top: 700,
-		width: 60,
+		width: 100,
 		height: 100,
 		zIndex: 0,
 		color: 'black',
@@ -568,15 +579,15 @@ const styles = StyleSheet.create({
 	rectangle: {
 		height: 5,
 		width: 5,
-		backgroundColor: 'red',
+		backgroundColor: 'mediumseagreen',
 		position: 'absolute',
 		zIndex: 99,
 	},
 	box: {
 		position: 'absolute',
 		borderWidth: 2,
-		borderColor: 'red',
-		color: 'red',
+		borderColor: 'mediumseagreen',
+		color: 'mediumseagreen',
 		zIndex: 5,
 	}
 })

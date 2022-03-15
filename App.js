@@ -1,16 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { StyleSheet, Text, View, Pressable, ImageBackground, Dimensions } from 'react-native'
+import { StyleSheet, Text, View, TextInput } from 'react-native'
 import { Camera } from 'expo-camera'
-import { manipulateAsync, FlipType, SaveFormat } from 'expo-image-manipulator'
 import * as tf from '@tensorflow/tfjs'
-import * as jpeg from 'jpeg-js'
-import { Buffer } from 'buffer'
-
-// Must import & override fetch otherwise will get "FileReader.readAsArrayBuffer is not implemented."
-// Causes "Platform browser has already been set. Overwriting the platform with [object Object]."
-import { bundleResourceIO } from '@tensorflow/tfjs-react-native'
+import { bundleResourceIO, cameraWithTensors } from '@tensorflow/tfjs-react-native'
 import * as mobilenet from '@tensorflow-models/mobilenet'
-import * as cocossd from '@tensorflow-models/coco-ssd'
+import * as blazeface from '@tensorflow-models/blazeface'
 
 import modelJson from './nn_model/tfjs_model/model.json'
 import modelWeights from './nn_model/tfjs_model/group1-shard1of1.bin'
@@ -18,18 +12,28 @@ import modelWeights from './nn_model/tfjs_model/group1-shard1of1.bin'
 export default function App() {
 
   const [hasPermission, setHasPermission] = useState(null);
-  const [type, setType] = useState(Camera.Constants.Type.front);
-	const [cameraReady, setCameraReady] = useState(false)
+
 	const [tfReady, setTfReady] = useState(false)
-	const camera = useRef(null)
-	const [photo, setPhoto] = useState(null)
 	const [sm, setSm] = useState(null)
 	const [mm, setMm] = useState(null)
 	const [cm, setCm] = useState(null)
-	const [sm_pred, setSmPred] = useState([])
-	const [mm_pred, setMmPred] = useState([])
-	const [cm_pred, setCmPred] = useState(null)
-	const [across, setacross] = useState(96)
+
+	const TensorCamera = cameraWithTensors(Camera)
+	let framecount = 0
+	let framesperpred = 10
+	let frameid = 0
+
+	const sm_predictions = useRef()
+	const sm_probabilities = useRef()
+
+	const bfp0 = useRef()
+	const bfp0_0 = useRef()
+	const bfp0_1 = useRef()
+	const bfp0_2 = useRef()
+	const bfp0_3 = useRef()
+	const bfp0_4 = useRef()
+	const bfp0_5 = useRef()
+
 
 	// Request permissions
   useEffect(() => {
@@ -37,23 +41,14 @@ export default function App() {
       const { status } = await Camera.requestCameraPermissionsAsync()
       setHasPermission(status === 'granted')
     })()
-		setPhoto(null)
   }, [])
-
-	useEffect(() => {
-		if (hasPermission) {
-			let dim = Dimensions.get('window')
-			setacross(dim.height > dim.width ? dim.width : dim.height)
-		}
-	}, [ hasPermission ])
 
 	// Load TensorFlow + models
 	useEffect( async () => {
-		// tf.setBackend('cpu').then(
 		tf.ready().then(async () => {
 			setTfReady(true)
 			mobilenet.load().then(setSm)
-			cocossd.load().then(setMm)
+			blazeface.load().then(setMm)
 			tf.loadLayersModel(
 				bundleResourceIO(
 					modelJson, 
@@ -61,75 +56,92 @@ export default function App() {
 				)
 			).then(setCm)
 		})
-		// )
 	}, [])
 
-	useEffect(async () => {
-		if (photo && tfReady) {
+	function handleCameraStream(image) {
+		if (image) {
+			const loop = async () => {
 
-			let image = jpeg.decode(
-				Buffer.from(
-					photo.base64,
-					// photo.base64.split('base64,')[1], 
-					'base64'
-				), 
-				{ useTArray: true, formatAsRGBA: false }
-			)
+				let imageTensor = image.next().value
 
-			let tensor = tf.tensor3d(
-				image.data, 
-				[image.height, image.width, 3]
-			)
+				if (imageTensor) {
+					if (framecount === 0 && sm) {
 
-			let greyscale = new Uint8Array(image.height * image.width)
+						let pred = await sm.classify(imageTensor).catch(console.log)
+						sm_predictions.current.setNativeProps({
+							text: 'MobileNet Predictions \n ' + pred.map(e => e.className.replace(/(.{35})..+/, "$1…")).join('\n ')
+						})
+						sm_probabilities.current.setNativeProps({
+							text: 'Probabilities\n' + pred.map(e => (Math.round(e.probability * 10000) / 10000).toFixed(4)).join('\n')
+						})
 
-			let i = 0
-			for (let i = 0; i < image.height * image.width; i++) {
-				greyscale[i] = 
-					image.data[3 * i + 0] * 0.2989 + 
-					image.data[3 * i + 1] * 0.5870 + 
-					image.data[3 * i + 2] * 0.1140
-			}
+					} else if (framecount === ((framesperpred / 3) >> 0) && mm) {
 
-			let gs_tensor = tf.tensor4d(
-				greyscale,
-				[1, image.height, image.width, 1]
-			)
-
-			if (sm) {
-				sm.classify(tensor).then(setSmPred)
-			}
-
-			if (mm) {
-				mm.detect(tensor).then(predictions => {
-					setMmPred(predictions)
-
-					console.log('mm_prediction made')
-
-					console.log(predictions)
-					if (predictions.length && predictions[0].class === 'person') {
-						console.log('largest is person')
-						// ~80% of 96 + 96
-						if (predictions[0].bbox[2] + predictions[0].bbox[3] > 150) { 
-							console.log('mostly person')
-							if (cm) {
-								console.log('facial keypoints detection')
-								let predictions = cm.predict(gs_tensor)
-								predictions.data().then(setCmPred)
-								// cm.predict(gs_tensor).data().then(setCmPred)
-
-							}
+						let pred = await mm.estimateFaces(imageTensor).catch(console.log)
+						
+						if (pred[0]) {
+							bfp0.current.setNativeProps({
+								style: [styles.box, {
+									marginLeft: pred[0].topLeft[0] * 2 + 15, width: (pred[0].bottomRight[0] - pred[0].topLeft[0]) * 2, 
+									marginTop: pred[0].topLeft[1] * 2 + 45, height: (pred[0].bottomRight[1] - pred[0].topLeft[1]) * 2,
+								}], text: (Math.round(pred[0].probability[0] * 10000) / 10000).toFixed(4)
+							})
+							bfp0_0.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[0][0] * 2 + 15, marginTop: pred[0].landmarks[0][1] * 2 + 45}]})
+							bfp0_1.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[1][0] * 2 + 15, marginTop: pred[0].landmarks[1][1] * 2 + 45}]})
+							bfp0_2.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[2][0] * 2 + 15, marginTop: pred[0].landmarks[2][1] * 2 + 45}]})
+							bfp0_3.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[3][0] * 2 + 15, marginTop: pred[0].landmarks[3][1] * 2 + 45}]})
+							bfp0_4.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[4][0] * 2 + 15, marginTop: pred[0].landmarks[4][1] * 2 + 45}]})
+							bfp0_5.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[5][0] * 2 + 15, marginTop: pred[0].landmarks[5][1] * 2 + 45}]})
+						} else {
+							bfp0.current.setNativeProps({style: [styles.box, {marginLeft: 0, marginTop: 0, width: 0, height: 0}], text: ''})
+							bfp0_0.current.setNativeProps({style: [styles.rectangle, {marginLeft: 0, marginTop: 0}]})
+							bfp0_1.current.setNativeProps({style: [styles.rectangle, {marginLeft: 0, marginTop: 0}]})
+							bfp0_2.current.setNativeProps({style: [styles.rectangle, {marginLeft: 0, marginTop: 0}]})
+							bfp0_3.current.setNativeProps({style: [styles.rectangle, {marginLeft: 0, marginTop: 0}]})
+							bfp0_4.current.setNativeProps({style: [styles.rectangle, {marginLeft: 0, marginTop: 0}]})
+							bfp0_5.current.setNativeProps({style: [styles.rectangle, {marginLeft: 0, marginTop: 0}]})
 						}
-					}
-				})
-			}
 
+					} else if (framecount === (((framesperpred * 2 / 3) >> 0)) && cm) {
+
+						let imageBuffer = await imageTensor.buffer()
+						let greyscale = new Uint8Array(imageBuffer.shape[0] * imageBuffer.shape[1])
+
+						for (let i = 0; i < imageBuffer.shape[0] * imageBuffer.shape[1]; i++) {
+							greyscale[i] = 
+								imageBuffer.values[3 * i + 0] * 0.2989 + 
+								imageBuffer.values[3 * i + 1] * 0.5870 + 
+								imageBuffer.values[3 * i + 2] * 0.1140
+						}
+
+						let gs_tensor = tf.tensor4d(
+							greyscale,
+							[1, imageBuffer.shape[0], imageBuffer.shape[1], 1]
+						)
+						
+						// console.warn(gs_tensor)
+						// console.warn(cm.predict(gs_tensor))
+						// cm.predict(gs_tensor).catch(console.error)
+						// let predictions = await cm.predict(gs_tensor).catch(console.error)
+						// predictions.data().then(console.warn)
+
+						tf.dispose(gs_tensor)
+					}
+				}
+
+
+				tf.dispose(imageTensor)
+				framecount = (framecount + 1) % framesperpred
+
+				frameid = requestAnimationFrame(loop)
+			}
+			loop()
 		}
-	}, [ photo ])
+	}
 
 	useEffect(() => {
-		console.log(cm_pred)
-	}, [ cm_pred ])
+		return () => cancelAnimationFrame(frameid)
+	}, [ frameid ])
 
 	// Deal with situations surrounding no / awaiting permissions
   if (hasPermission === null) {
@@ -146,240 +158,47 @@ export default function App() {
   return (
     <>
 			{tfReady && sm && mm && cm ? 
-				<View style={styles.container}>
-					<View style={{
-						height: 100,
-						alignItems: 'center',
-						justifyContent: 'center',
-					}}>
-						<Text style={{color: 'black'}}>title</Text>
-					</View>
-					
-					{photo ? 
-						<>
-							<Pressable
-								onPressOut={() => {
-									if (sm_pred.length) {
-										setPhoto(null)
-										setSmPred([])
-										setMmPred([])
-										setCmPred(null)
-									}
-								}}
-							>
+				<>
+					<TensorCamera
+						// iPhone 16:9 ratio, otherwise it will strech
+						style={styles.camera}
+						type={Camera.Constants.Type.front}
+						cameraTextureHeight={1920}
+						cameraTextureWidth={1080}
+						resizeHeight={320}
+						resizeWidth={180}
+						resizeDepth={3}
+						onReady={handleCameraStream}
+						autorender={true}
+					/>
 
-								<ImageBackground
-									style={{ 
-										width: across, 
-										height: across,
-									}}
-									source={photo}
-								>
-									{
-										mm_pred.map(e => <Text
-												key={e.class + ' ' + e.score}
-												style={[ styles.box, { 
-													marginLeft: e.bbox[0] / 96 * across,
-													marginTop: e.bbox[1] / 96 * across,
-													width: e.bbox[2] / 96 * across,
-													height: e.bbox[3] / 96 * across,
-												}]}
-											>
-												{e.class + ' ' + e.score}
-											</Text>
-										)
-									}
-									{ cm_pred ? 
-										<>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[0] / 96 * across,
-													marginTop: cm_pred[1] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[2] / 96 * across,
-													marginTop: cm_pred[3] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[4] / 96 * across,
-													marginTop: cm_pred[5] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[6] / 96 * across,
-													marginTop: cm_pred[7] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[8] / 96 * across,
-													marginTop: cm_pred[9] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[10] / 96 * across,
-													marginTop: cm_pred[11] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[12] / 96 * across,
-													marginTop: cm_pred[13] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[14] / 96 * across,
-													marginTop: cm_pred[15] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[16] / 96 * across,
-													marginTop: cm_pred[17] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[18] / 96 * across,
-													marginTop: cm_pred[19] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[20] / 96 * across,
-													marginTop: cm_pred[21] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[22] / 96 * across,
-													marginTop: cm_pred[23] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[24] / 96 * across,
-													marginTop: cm_pred[25] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[26] / 96 * across,
-													marginTop: cm_pred[27] / 96 * across,
-												}]}
-											/>
-											<View
-												style={[styles.rectangle, {
-													marginLeft: cm_pred[28] / 96 * across,
-													marginTop: cm_pred[29] / 96 * across,
-												}]}
-											/>
-										</>
-									:
-										<></>
-									}
-								</ImageBackground>
-							</Pressable>
-							<View style={styles.container}>
-								{
-									sm_pred.map(e => 
-										<Text 
-											style={{ 
-												color: 'black',
-												flex: 1,
-											}}
-											key={e.className}
-										>
-											{e.className + ' ' + e.probability}
-										</Text>
-									)
-								}
-							</View>
-						</>
-						:
-						<>
-							<Camera 
-								style={{ 
-									width: across, 
-									height: across,
-								}}
-								type={type}
-								onCameraReady={() => setCameraReady(true)}
-								ref={camera}
-							/>
+					<TextInput 
+						multiline
+						editable={false} 
+						style={styles.bottomleft}
+						ref={sm_predictions} 
+						text='mobilenet'
+					/>
+					<TextInput 
+						multiline
+						editable={false} 
+						style={styles.bottomright}
+						ref={sm_probabilities} 
+						text='probabilities'
+					/>
 
-							<View style={styles.buttonContainer}>
-								<Pressable
-									style={styles.button}
-									onPressOut={() => {
-										setType(
-											type === Camera.Constants.Type.back
-												? Camera.Constants.Type.front
-												: Camera.Constants.Type.back
-										);
-									}}
-								>
-									<Text style={styles.text}> Flip </Text>
-								</Pressable>
-
-								<Pressable
-									style={styles.button}
-									onPressOut={async () => {
-										if (cameraReady) {
-											camera.current.takePictureAsync(
-												{quality: 0}
-											).then(p => {
-												let s = Math.min(p.width, p.height)
-												if (type === Camera.Constants.Type.front) {
-													manipulateAsync(
-														p.uri, 
-														[
-															{ rotate: 180 }, 
-															{ flip: FlipType.Vertical }, 
-															{ crop: { 
-																	originX: (p.width - s) / 2, 
-																	originY: (p.height - s) / 2, 
-																	width: s, 
-																	height: s
-																}
-															}, 
-															{ resize: { width: 96, height: 96 } }
-														],
-														{ base64: true, compress: 1, format: SaveFormat.JPEG }
-													).then(setPhoto)
-												} else {
-													manipulateAsync(
-														p.uri, 
-														[
-															{ crop: { 
-																	originX: (p.width - s) / 2, 
-																	originY: (p.height - s) / 2, 
-																	width: s, 
-																	height: s
-																}
-															}, 
-															{ resize: { width: 96, height: 96 } }
-														],
-														{ base64: true, compress: 1, format: SaveFormat.JPEG }
-													).then(setPhoto)
-												}
-											})
-										}
-									}}
-								>
-									<Text style={styles.text}> Clip </Text>
-								</Pressable>
-							</View>
-						</>
-					}
-				</View>
+					<TextInput
+						multiline
+						editable={false}
+						ref={bfp0}
+					/>
+					<View ref={bfp0_0}/>
+					<View ref={bfp0_1}/>
+					<View ref={bfp0_2}/>
+					<View ref={bfp0_3}/>
+					<View ref={bfp0_4}/>
+					<View ref={bfp0_5}/>
+				</>
 			:
 			<View style={styles.middletext}>
 				<Text>
@@ -396,6 +215,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+	camera: {
+    position: "absolute",
+    left: 15,
+    top: 45,
+    width: 360,
+    height: 640,
+    zIndex: -100,
+	},
+	bottomleft: {
+		position: "absolute",
+		left: 15,
+		top: 700,
+		width: 300,
+		height: 100,
+		zIndex: 0,
+		color: 'black',
+	},
+	bottomright: {
+		position: "absolute",
+		right: 15,
+		top: 700,
+		width: 100,
+		height: 100,
+		zIndex: 0,
+		color: 'black',
+		textAlign: 'right',
+	},
   buttonContainer: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -419,14 +265,15 @@ const styles = StyleSheet.create({
 	rectangle: {
 		height: 5,
 		width: 5,
-		backgroundColor: 'red',
+		backgroundColor: 'mediumseagreen',
 		position: 'absolute',
-		zIndex: 99,
+		zIndex: 100,
 	},
 	box: {
 		position: 'absolute',
 		borderWidth: 2,
-		borderColor: 'red',
-		color: 'red',
+		borderColor: 'mediumseagreen',
+		color: 'mediumseagreen',
+		zIndex: 100,
 	}
 })

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-- This is an experiment with React Native (targeting iOS), Expo, and TensorFlow. It implements a simple single object detection neural network (mobilenet), a multi-object model (cocossd), plus a facial keypoint detector trained by the author. 
+- This is an experiment with React Native (targeting iOS), Expo, and TensorFlow. It implements a simple single object detection neural network (mobilenet), a facial detection model (blazeface), plus a facial keypoint detector trained in /nn_model/. 
 - Details
 	- The facial training data set is from [Kaggle](https://www.kaggle.com/c/facial-keypoints-detection/) (which is in turn provided by Dr. Yoshua Bengio from the University of Montreal), and the pretrained models are from [the TensorFlow model garden](https://github.com/tensorflow/models). 
 	- techniques (TBA)
@@ -19,7 +19,7 @@
 	1. Have npm installed
 	2. "npm install"
 	3. "expo start"
-	4. open in Expo Go (tested on iOS)
+	4. open in Expo Go (tested on an iPhone 12)
 
 ## Contact Info
 

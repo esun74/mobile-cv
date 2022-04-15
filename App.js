@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { StyleSheet, Text, View, TextInput } from 'react-native'
+import { StyleSheet, Text, View, TextInput, Image } from 'react-native'
 import { Camera } from 'expo-camera'
 import * as tf from '@tensorflow/tfjs'
 import { bundleResourceIO, cameraWithTensors } from '@tensorflow/tfjs-react-native'
 import * as mobilenet from '@tensorflow-models/mobilenet'
 import * as blazeface from '@tensorflow-models/blazeface'
+import jpeg from 'jpeg-js'
 
 import modelJson from './nn_model/tfjs_model/model.json'
 import modelWeights from './nn_model/tfjs_model/group1-shard1of1.bin'
 
 export default function App() {
 
-  const [hasPermission, setHasPermission] = useState(null);
+  const [hasPermission, setHasPermission] = useState(null)
 
 	const [tfReady, setTfReady] = useState(false)
 	const [sm, setSm] = useState(null)
@@ -20,7 +21,7 @@ export default function App() {
 
 	const TensorCamera = cameraWithTensors(Camera)
 	let framecount = 0
-	let framesperpred = 10
+	let framesperpred = 3
 	let frameid = 0
 
 	const sm_predictions = useRef()
@@ -34,6 +35,22 @@ export default function App() {
 	const bfp0_4 = useRef()
 	const bfp0_5 = useRef()
 
+	const cnnp0 = useRef()
+	const cnnp0_00 = useRef()
+	const cnnp0_01 = useRef()
+	const cnnp0_02 = useRef()
+	const cnnp0_03 = useRef()
+	const cnnp0_04 = useRef()
+	const cnnp0_05 = useRef()
+	const cnnp0_06 = useRef()
+	const cnnp0_07 = useRef()
+	const cnnp0_08 = useRef()
+	const cnnp0_09 = useRef()
+	const cnnp0_10 = useRef()
+	const cnnp0_11 = useRef()
+	const cnnp0_12 = useRef()
+	const cnnp0_13 = useRef()
+	const cnnp0_14 = useRef()
 
 	// Request permissions
   useEffect(() => {
@@ -82,16 +99,16 @@ export default function App() {
 						if (pred[0]) {
 							bfp0.current.setNativeProps({
 								style: [styles.box, {
-									marginLeft: pred[0].topLeft[0] * 2 + 15, width: (pred[0].bottomRight[0] - pred[0].topLeft[0]) * 2, 
-									marginTop: pred[0].topLeft[1] * 2 + 45, height: (pred[0].bottomRight[1] - pred[0].topLeft[1]) * 2,
+									marginLeft: pred[0].topLeft[0] * (640 / 196) + 15, width: (pred[0].bottomRight[0] - pred[0].topLeft[0]) * (640 / 196), 
+									marginTop: pred[0].topLeft[1] * (640 / 196) + 45, height: (pred[0].bottomRight[1] - pred[0].topLeft[1]) * (640 / 196),
 								}], text: (Math.round(pred[0].probability[0] * 10000) / 10000).toFixed(4)
 							})
-							bfp0_0.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[0][0] * 2 + 15, marginTop: pred[0].landmarks[0][1] * 2 + 45}]})
-							bfp0_1.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[1][0] * 2 + 15, marginTop: pred[0].landmarks[1][1] * 2 + 45}]})
-							bfp0_2.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[2][0] * 2 + 15, marginTop: pred[0].landmarks[2][1] * 2 + 45}]})
-							bfp0_3.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[3][0] * 2 + 15, marginTop: pred[0].landmarks[3][1] * 2 + 45}]})
-							bfp0_4.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[4][0] * 2 + 15, marginTop: pred[0].landmarks[4][1] * 2 + 45}]})
-							bfp0_5.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[5][0] * 2 + 15, marginTop: pred[0].landmarks[5][1] * 2 + 45}]})
+							bfp0_0.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[0][0] * (640 / 196) + 15, marginTop: pred[0].landmarks[0][1] * (640 / 196) + 45}]})
+							bfp0_1.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[1][0] * (640 / 196) + 15, marginTop: pred[0].landmarks[1][1] * (640 / 196) + 45}]})
+							bfp0_2.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[2][0] * (640 / 196) + 15, marginTop: pred[0].landmarks[2][1] * (640 / 196) + 45}]})
+							bfp0_3.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[3][0] * (640 / 196) + 15, marginTop: pred[0].landmarks[3][1] * (640 / 196) + 45}]})
+							bfp0_4.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[4][0] * (640 / 196) + 15, marginTop: pred[0].landmarks[4][1] * (640 / 196) + 45}]})
+							bfp0_5.current.setNativeProps({style: [styles.rectangle, {marginLeft: pred[0].landmarks[5][0] * (640 / 196) + 15, marginTop: pred[0].landmarks[5][1] * (640 / 196) + 45}]})
 						} else {
 							bfp0.current.setNativeProps({style: [styles.box, {marginLeft: 0, marginTop: 0, width: 0, height: 0}], text: ''})
 							bfp0_0.current.setNativeProps({style: [styles.rectangle, {marginLeft: 0, marginTop: 0}]})
@@ -105,25 +122,68 @@ export default function App() {
 					} else if (framecount === (((framesperpred * 2 / 3) >> 0)) && cm) {
 
 						let imageBuffer = await imageTensor.buffer()
-						let greyscale = new Uint8Array(imageBuffer.shape[0] * imageBuffer.shape[1])
+						let greyscale = new Uint8Array(96 * 96)
+						let greyscale_jpeg = new Uint8Array(96 * 96 * 4)
 
-						for (let i = 0; i < imageBuffer.shape[0] * imageBuffer.shape[1]; i++) {
-							greyscale[i] = 
-								imageBuffer.values[3 * i + 0] * 0.2989 + 
-								imageBuffer.values[3 * i + 1] * 0.5870 + 
-								imageBuffer.values[3 * i + 2] * 0.1140
+						for (let i = 0; i < 96; i++) {
+							for (let j = 0; j < 96; j++) {
+								greyscale[i * 96 + j] = Math.round(
+									imageBuffer.values[((i + 48) * 108 + j + 6) * 3 + 0] * 0.2989 + 
+									imageBuffer.values[((i + 48) * 108 + j + 6) * 3 + 1] * 0.5870 + 
+									imageBuffer.values[((i + 48) * 108 + j + 6) * 3 + 2] * 0.1140
+								)
+								greyscale_jpeg[(i * 96 + j) * 4 + 0] = greyscale[i * 96 + j]
+								greyscale_jpeg[(i * 96 + j) * 4 + 1] = greyscale[i * 96 + j]
+								greyscale_jpeg[(i * 96 + j) * 4 + 2] = greyscale[i * 96 + j]
+								greyscale_jpeg[(i * 96 + j) * 4 + 3] = 1 
+							}
+						}
+
+						try {
+							cnnp0.current.setNativeProps(
+								{source:
+									[{uri: 'data:image/jpeg;base64,' + jpeg.encode({data: greyscale_jpeg, width: 96, height: 96}).data.toString('base64')}]
+								}
+							)
+						} catch (error) {
+							console.warn(error)
 						}
 
 						let gs_tensor = tf.tensor4d(
 							greyscale,
-							[1, imageBuffer.shape[0], imageBuffer.shape[1], 1]
+							[1, 96, 96, 1]
 						)
 						
-						// console.warn(gs_tensor)
-						// console.warn(cm.predict(gs_tensor))
-						// cm.predict(gs_tensor).catch(console.error)
-						// let predictions = await cm.predict(gs_tensor).catch(console.error)
-						// predictions.data().then(console.warn)
+						try {
+							let pred = await cm.predict(gs_tensor, {batchSize: 1})
+							pred = await pred.data()
+
+							// top = 640
+							// side = 360
+							// dim = 192, 108
+							// scaling = 640/192, 360/108
+							// points taken = start at 48, 6 end at 144, 102 (padding: 48, 6)
+							// scaled = 160, 20
+
+							cnnp0_00.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[0] * (320 / 96) + 35, marginTop: pred[1] * (320 / 96) + 205}]})
+							cnnp0_01.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[2] * (320 / 96) + 35, marginTop: pred[3] * (320 / 96) + 205}]})
+							cnnp0_02.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[4] * (320 / 96) + 35, marginTop: pred[5] * (320 / 96) + 205}]})
+							cnnp0_03.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[6] * (320 / 96) + 35, marginTop: pred[7] * (320 / 96) + 205}]})
+							cnnp0_04.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[8] * (320 / 96) + 35, marginTop: pred[9] * (320 / 96) + 205}]})
+							cnnp0_05.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[10] * (320 / 96) + 35, marginTop: pred[11] * (320 / 96) + 205}]})
+							cnnp0_06.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[12] * (320 / 96) + 35, marginTop: pred[13] * (320 / 96) + 205}]})
+							cnnp0_07.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[14] * (320 / 96) + 35, marginTop: pred[15] * (320 / 96) + 205}]})
+							cnnp0_08.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[16] * (320 / 96) + 35, marginTop: pred[17] * (320 / 96) + 205}]})
+							cnnp0_09.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[18] * (320 / 96) + 35, marginTop: pred[19] * (320 / 96) + 205}]})
+							cnnp0_10.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[20] * (320 / 96) + 35, marginTop: pred[21] * (320 / 96) + 205}]})
+							cnnp0_11.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[22] * (320 / 96) + 35, marginTop: pred[23] * (320 / 96) + 205}]})
+							cnnp0_12.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[24] * (320 / 96) + 35, marginTop: pred[25] * (320 / 96) + 205}]})
+							cnnp0_13.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[26] * (320 / 96) + 35, marginTop: pred[27] * (320 / 96) + 205}]})
+							cnnp0_14.current.setNativeProps({style: [styles.redtangle, {marginLeft: pred[28] * (320 / 96) + 35, marginTop: pred[29] * (320 / 96) + 205}]})
+
+						} catch (error) {
+							console.error(error)
+						}
 
 						tf.dispose(gs_tensor)
 					}
@@ -165,9 +225,9 @@ export default function App() {
 						type={Camera.Constants.Type.front}
 						cameraTextureHeight={1920}
 						cameraTextureWidth={1080}
-						resizeHeight={320}
-						resizeWidth={180}
-						resizeDepth={3}
+						resizeHeight={192}
+						resizeWidth={108}
+						resizeDepth={0}
 						onReady={handleCameraStream}
 						autorender={true}
 					/>
@@ -198,6 +258,38 @@ export default function App() {
 					<View ref={bfp0_3}/>
 					<View ref={bfp0_4}/>
 					<View ref={bfp0_5}/>
+
+
+					<Image
+						source={require('./random.jpg')}
+						ref={cnnp0}
+						style={{
+							marginLeft: 35,
+							marginTop: 205,
+							width: 320,
+							height: 320,
+							position: 'absolute',
+							zIndex: 50,
+						}}
+					/>
+
+
+					<View ref={cnnp0_00}/>
+					<View ref={cnnp0_01}/>
+					<View ref={cnnp0_02}/>
+					<View ref={cnnp0_03}/>
+					<View ref={cnnp0_04}/>
+					<View ref={cnnp0_05}/>
+					<View ref={cnnp0_06}/>
+					<View ref={cnnp0_07}/>
+					<View ref={cnnp0_08}/>
+					<View ref={cnnp0_09}/>
+					<View ref={cnnp0_10}/>
+					<View ref={cnnp0_11}/>
+					<View ref={cnnp0_12}/>
+					<View ref={cnnp0_13}/>
+					<View ref={cnnp0_14}/>
+
 				</>
 			:
 			<View style={styles.middletext}>
@@ -275,5 +367,19 @@ const styles = StyleSheet.create({
 		borderColor: 'mediumseagreen',
 		color: 'mediumseagreen',
 		zIndex: 100,
-	}
+	},
+	redtangle: {
+		height: 5,
+		width: 5,
+		backgroundColor: 'red',
+		position: 'absolute',
+		zIndex: 200,
+	},
+	box2: {
+		position: 'absolute',
+		borderWidth: 2,
+		borderColor: 'red',
+		color: 'red',
+		zIndex: 200,
+	},
 })
